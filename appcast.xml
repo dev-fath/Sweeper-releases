@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Sweeper</title>
+    <item>
+      <title>0.1.0</title>
+      <pubDate>Tue, 10 Nov 2026 15:43:25 +0900</pubDate>
+      <sparkle:version>53</sparkle:version>
+      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:releaseNotesLink>https://github.com/dev-fath/Sweeper-releases/releases/tag/v0.1.0</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/dev-fath/Sweeper-releases/releases/download/v0.1.0/Sweeper-0.1.0.zip" sparkle:edSignature="F8wHdKBr0m69YOyT/BFxHiftMLQ1gRd8HpVwVsh6eifIWw/X3FFdynysBYVgDD7rUtpA8/FXSxCt75DJQ4zQBw==" length="5863007" type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
