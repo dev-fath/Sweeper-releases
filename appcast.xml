@@ -3,13 +3,13 @@
   <channel>
     <title>Sweeper</title>
     <item>
-      <title>0.6.1</title>
-      <pubDate>Thu, 12 Nov 2026 13:41:38 +0900</pubDate>
-      <sparkle:version>199</sparkle:version>
-      <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
+      <title>0.7.0</title>
+      <pubDate>Thu, 12 Nov 2026 16:15:15 +0900</pubDate>
+      <sparkle:version>210</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/dev-fath/Sweeper-releases/releases/tag/v0.6.1</sparkle:releaseNotesLink>
-      <enclosure url="https://github.com/dev-fath/Sweeper-releases/releases/download/v0.6.1/Sweeper-0.6.1.zip" sparkle:edSignature="x6e8Q0U58FLVyadq/nHUGVtUbnzuvd1kzGME3c6ik0AgoeYTYITrYqix3dnd5VbvMltV5tUKphrlst8H5M+uAQ==" length="9843887" type="application/octet-stream"/>
+      <sparkle:releaseNotesLink>https://github.com/dev-fath/Sweeper-releases/releases/tag/v0.7.0</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/dev-fath/Sweeper-releases/releases/download/v0.7.0/Sweeper-0.7.0.zip" sparkle:edSignature="iLhdRZqocNQGwhZdeyVKcpgtI4zVnFSIl/7nYhctJ9r2t1rb7bCHJDByR5h/Ky8rOg6T+FG/xt3dWmTj6z19Cg==" length="10051647" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
