@@ -10,6 +10,8 @@
 <meta property="og:image" content="icon.png">
 <meta property="og:type" content="website">
 <link rel="icon" href="icon.png">
+<link rel="alternate" hreflang="ko" href="https://dev-fath.github.io/Sweeper-releases/">
+<link rel="alternate" hreflang="en" href="https://dev-fath.github.io/Sweeper-releases/en/">
 <style>
   :root {
     --bg: #0d1513; --lowest: #08100e; --low: #151d1b; --c1: #19211f; --high: #232c29; --highest: #2e3634;
@@ -45,6 +47,8 @@
   .brand img { width: 28px; height: 28px; }
   nav.links { display: flex; gap: 22px; margin-left: auto; font-size: 14px; }
   nav.links a { color: var(--onv); }
+  .lang { font-size: 14px; color: var(--onv); white-space: nowrap; }
+  .lang:hover { color: var(--on); text-decoration: none; }
   nav.links a:hover { color: var(--on); text-decoration: none; }
 
   /* 버튼 */
@@ -209,7 +213,7 @@
 
   @media (max-width: 880px) {
     nav.links { display: none; }
-    header.top .btn { margin-left: auto; }
+    .lang { margin-left: auto; }
     .hero { padding: 56px 0 48px; }
     .hero .wrap, .split { grid-template-columns: minmax(0, 1fr); gap: 40px; }
     .grid3, .grid2, .how, .dl, .gallery { grid-template-columns: minmax(0, 1fr); }
@@ -238,6 +242,7 @@
       <a href="#download">다운로드</a>
       <a href="#faq">자주 묻는 질문</a>
     </nav>
+    <a class="lang" href="en/" hreflang="en" lang="en">English</a>
     <a class="btn btn-primary btn-small js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">내려받기</a>
   </div>
 </header>

@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sweeper — A Mac cleaner that shows you what it deletes</title>
+<meta name="description" content="Sweeper shows you what it deletes and why. It finds caches, logs, and the big leftovers from development like Docker images, Xcode build data, and old node_modules. It never touches your logins, cookies, or keys.">
+<meta property="og:title" content="Sweeper — A Mac cleaner that shows you what it deletes">
+<meta property="og:description" content="A Mac cleaner that shows what it deletes and why. Especially good on a developer's Mac.">
+<meta property="og:image" content="../icon.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="../icon.png">
+<link rel="alternate" hreflang="ko" href="https://dev-fath.github.io/Sweeper-releases/">
+<link rel="alternate" hreflang="en" href="https://dev-fath.github.io/Sweeper-releases/en/">
+<style>
+  :root {
+    --bg: #0d1513; --lowest: #08100e; --low: #151d1b; --c1: #19211f; --high: #232c29; --highest: #2e3634;
+    --on: #dce4e1; --onv: #bfc9c1; --outline: #89938c; --line: rgba(64, 73, 67, .55);
+    --primary: #90d5b2; --pc: #0d593e; --pfixed: #abf1cd;
+    --secondary: #ffa9fe; --sc: #9501a3; --tertiary: #81d1f0; --tc: #00556b;
+    --radius: 16px; --max: 1080px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: var(--on); background: var(--bg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+    word-break: keep-all; overflow-wrap: break-word; overflow-x: hidden;
+  }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font: 500 .88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--high); padding: .15em .45em; border-radius: 6px; color: var(--on); }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
+
+  /* 빛 번짐 */
+  .glow { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .glow i { position: absolute; border-radius: 50%; filter: blur(120px); }
+  .glow i:nth-child(1) { width: 520px; height: 520px; left: -160px; top: -120px; background: rgba(13, 89, 62, .45); }
+  .glow i:nth-child(2) { width: 460px; height: 460px; right: -140px; top: 120px; background: rgba(149, 1, 163, .22); }
+  .glow i:nth-child(3) { width: 360px; height: 360px; left: 40%; top: 420px; background: rgba(0, 85, 107, .25); }
+
+  /* 머리 */
+  header.top { position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(160%) blur(16px); -webkit-backdrop-filter: saturate(160%) blur(16px); background: rgba(13, 21, 19, .72); border-bottom: 1px solid var(--line); }
+  header.top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; color: var(--on); letter-spacing: -.01em; }
+  .brand:hover { text-decoration: none; }
+  .brand img { width: 28px; height: 28px; }
+  nav.links { display: flex; gap: 22px; margin-left: auto; font-size: 14px; }
+  nav.links a { color: var(--onv); }
+  .lang { font-size: 14px; color: var(--onv); white-space: nowrap; }
+  .lang:hover { color: var(--on); text-decoration: none; }
+  nav.links a:hover { color: var(--on); text-decoration: none; }
+
+  /* 버튼 */
+  .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; transition: transform .15s ease, box-shadow .15s ease; }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: #fff; color: var(--lowest); padding: 14px 26px; font-size: 16px; box-shadow: 0 0 24px rgba(255, 255, 255, .18); }
+  .btn-primary:hover { box-shadow: 0 0 32px rgba(255, 255, 255, .3); }
+  .btn-small { padding: 8px 16px; font-size: 14px; }
+  .btn-ghost { color: var(--on); padding: 14px 18px; font-size: 15px; }
+  .btn svg { width: 18px; height: 18px; }
+
+  /* 히어로 */
+  .hero { position: relative; padding: 88px 0 72px; }
+  .hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; color: var(--primary); background: rgba(144, 213, 178, .12); border-radius: 999px; padding: 5px 12px; margin-bottom: 18px; }
+  h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.18; letter-spacing: -.03em; margin: 0 0 20px; font-weight: 700; }
+  h1 em { font-style: normal; color: var(--primary); }
+  .lead { font-size: 18px; color: var(--onv); margin: 0 0 32px; max-width: 34em; }
+  .cta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .meta { margin-top: 14px; font-size: 13px; color: var(--outline); }
+
+  /* 앱 창 모형 */
+  .window { background: linear-gradient(160deg, var(--bg), var(--lowest) 60%, var(--low)); border-radius: 14px; border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(0, 0, 0, .4); overflow: hidden; display: grid; grid-template-columns: 150px minmax(0, 1fr); font-size: 12px; min-height: 360px; }
+  .window .side { background: rgba(8, 16, 14, .8); padding: 12px 10px; border-right: 1px solid var(--line); }
+  .lights { display: flex; gap: 6px; margin-bottom: 14px; }
+  .lights b { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+  .lights b:nth-child(2) { background: #febc2e; } .lights b:nth-child(3) { background: #28c840; }
+  .side .label { font-size: 9px; letter-spacing: .1em; color: var(--outline); margin: 12px 6px 4px; }
+  .side .item { padding: 5px 8px; border-radius: 6px; color: var(--onv); }
+  .side .item.on { background: rgba(13, 89, 62, .6); color: #89ceab; font-weight: 600; }
+  .window .main { min-width: 0; padding: 16px 16px 0; display: flex; flex-direction: column; }
+  .main h4 { margin: 0 0 2px; font-size: 15px; letter-spacing: -.01em; }
+  .main .sub { color: var(--outline); font-size: 11px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; gap: 10px; background: rgba(25, 33, 31, .7); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+  .tile { width: 26px; height: 26px; border-radius: 7px; background: rgba(13, 89, 62, .5); display: grid; place-items: center; color: var(--primary); font-size: 13px; flex: none; }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b { display: block; font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t span { color: var(--outline); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .pill { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill.safe { color: var(--primary); background: rgba(144, 213, 178, .16); }
+  .pill.warn { color: var(--tertiary); background: rgba(129, 209, 240, .16); }
+  .pill.judge { color: var(--secondary); background: rgba(255, 169, 254, .16); }
+  .size { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 52px; text-align: right; }
+  .check { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--outline); flex: none; }
+  .check.on { background: var(--primary); border-color: var(--primary); box-shadow: inset 0 0 0 3px var(--c1); }
+  .bar { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding: 10px 0 12px; border-top: 1px solid var(--line); margin-top: 8px; }
+  .bar span { color: var(--onv); font-size: 11px; }
+  .bar i { font-style: normal; background: #fff; color: var(--lowest); font-weight: 650; padding: 5px 12px; border-radius: 999px; font-size: 11px; }
+
+  /* 구역 */
+  section { position: relative; padding: 72px 0; }
+  section.alt { background: linear-gradient(180deg, rgba(8, 16, 14, .6), rgba(8, 16, 14, .2)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  h2 { font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -.025em; line-height: 1.3; margin: 0 0 12px; }
+  .intro { color: var(--onv); margin: 0 0 40px; max-width: 40em; font-size: 17px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .card { background: rgba(21, 29, 27, .75); border-radius: var(--radius); padding: 26px; position: relative; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+  .card::before { content: ""; position: absolute; top: 0; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .18), transparent); }
+  .card h3 { margin: 14px 0 8px; font-size: 19px; letter-spacing: -.015em; }
+  .card p { margin: 0; color: var(--onv); font-size: 15px; }
+  .icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(13, 89, 62, .5); color: var(--primary); }
+  .icon.m { background: rgba(149, 1, 163, .35); color: var(--secondary); }
+  .icon.s { background: rgba(0, 85, 107, .5); color: var(--tertiary); }
+  .icon svg { width: 22px; height: 22px; }
+
+  /* 기능 묶음 */
+  .feature-group { margin-bottom: 36px; }
+  .feature-group:last-child { margin-bottom: 0; }
+  .group-label { font-size: 12px; font-weight: 650; letter-spacing: .12em; color: var(--outline); margin: 0 0 12px; }
+  .feat { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .feat div { background: rgba(25, 33, 31, .7); border-radius: 12px; padding: 18px 20px; }
+  .feat b { display: block; font-size: 16px; margin-bottom: 4px; }
+  .feat span { color: var(--onv); font-size: 14px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .chips span { background: var(--high); color: var(--on); border-radius: 999px; padding: 6px 14px; font-size: 14px; }
+
+  /* 안전 */
+  ul.list { list-style: none; padding: 0; margin: 14px 0 0; }
+  ul.list li { position: relative; padding-left: 26px; margin-bottom: 10px; color: var(--onv); font-size: 15px; }
+  ul.list li::before { content: ""; position: absolute; left: 2px; top: .5em; width: 12px; height: 12px; border-radius: 50%; background: rgba(144, 213, 178, .2); box-shadow: inset 0 0 0 3px var(--primary); }
+  ul.list.no li::before { background: none; box-shadow: none; width: auto; height: auto; top: 0; content: "✕"; color: var(--secondary); font-weight: 700; font-size: 13px; }
+  ul.list b { color: var(--on); font-weight: 600; }
+
+  /* 메뉴 막대 모형 */
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; align-items: center; }
+  .panel { background: rgba(30, 38, 36, .92); border: 1px solid rgba(255, 255, 255, .08); border-radius: 14px; padding: 14px; font-size: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+  .panel .hd { display: flex; justify-content: space-between; color: var(--outline); font-size: 11px; margin-bottom: 10px; }
+  .stat { display: grid; grid-template-columns: 52px 1fr 40px; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .stat .lbl { color: var(--onv); }
+  .stat .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .meter { height: 6px; border-radius: 999px; background: var(--highest); overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+  .meter.t i { background: var(--tertiary); } .meter.m i { background: var(--secondary); }
+  .panel .seg { display: flex; background: var(--high); border-radius: 7px; padding: 2px; margin: 12px 0 8px; }
+  .panel .seg span { flex: 1; text-align: center; padding: 3px; border-radius: 5px; color: var(--onv); font-size: 11px; }
+  .panel .seg span.on { background: var(--highest); color: var(--on); font-weight: 600; }
+  .app { display: flex; justify-content: space-between; padding: 5px 4px; border-radius: 6px; color: var(--onv); }
+  .app b { color: var(--on); font-weight: 500; }
+
+  /* 설치 */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  ol.steps li { counter-increment: s; position: relative; background: rgba(25, 33, 31, .7); border-radius: 12px; padding: 18px 20px 18px 64px; color: var(--onv); }
+  ol.steps li::before { content: counter(s); position: absolute; left: 20px; top: 16px; width: 30px; height: 30px; border-radius: 50%; background: rgba(13, 89, 62, .6); color: var(--primary); font-weight: 700; display: grid; place-items: center; }
+  ol.steps b { color: var(--on); }
+  .note { margin-top: 16px; padding: 16px 20px; border-radius: 12px; background: rgba(0, 85, 107, .25); color: var(--onv); font-size: 14px; }
+  .note b { color: var(--tertiary); }
+
+  /* 자주 묻는 질문 */
+  details { background: rgba(25, 33, 31, .7); border-radius: 12px; margin-bottom: 10px; }
+  summary { cursor: pointer; padding: 18px 22px; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--outline); font-weight: 400; font-size: 20px; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { margin: 0; padding: 0 22px 20px; color: var(--onv); font-size: 15px; }
+  details p + p { margin-top: -8px; }
+  details p b { color: var(--on); }
+
+  .final { text-align: center; padding: 88px 0; }
+  .final .lead { margin-left: auto; margin-right: auto; }
+  .final .cta { justify-content: center; }
+  footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--outline); font-size: 13px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+  footer a { color: var(--onv); }
+
+  /* 배지 */
+  .badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .badges .eyebrow { margin: 0; }
+  .beta { font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--secondary); background: rgba(255, 169, 254, .14); border-radius: 999px; padding: 5px 10px; }
+  .badges a { font-size: 13px; color: var(--onv); }
+  .tag-new { display: inline-block; vertical-align: 2px; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--secondary); background: rgba(255, 169, 254, .14); border-radius: 999px; padding: 1px 8px; }
+
+  /* 사용법 */
+  .how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: h; }
+  .how .card { counter-increment: h; }
+  .how .num { font-size: 13px; font-weight: 700; color: var(--primary); }
+  .how .num::before { content: "0" counter(h); }
+  .sample { margin-top: 16px; font: 500 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--on); background: var(--lowest); border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line); }
+  .sample i { font-style: normal; color: var(--primary); }
+  .sample s { text-decoration: none; color: var(--outline); }
+
+  /* 최근 업데이트 */
+  .updates { margin-top: 40px; display: grid; gap: 10px; }
+  .updates div { display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: baseline; padding: 14px 18px; border-radius: 12px; background: rgba(25, 33, 31, .7); }
+  .updates b { font-variant-numeric: tabular-nums; color: var(--primary); font-size: 14px; }
+  .updates span { color: var(--onv); font-size: 15px; }
+
+  /* 다운로드 */
+  .dl { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .dl-card { text-align: left; }
+  .dl-card .btn { margin-top: 18px; }
+  .dl-card ul.list { margin-top: 18px; }
+
+  /* 스크린샷 */
+  .shot { display: block; width: 100%; max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .08); }
+  .shot-panel { width: 320px; max-width: 100%; border-radius: 14px; }
+  .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 24px; }
+  .gallery figure { margin: 0; }
+  .gallery figcaption { margin-top: 12px; color: var(--onv); font-size: 15px; }
+  .gallery figcaption b { color: var(--on); margin-right: 6px; }
+  .shot-note { margin-top: 20px; font-size: 13px; color: var(--outline); }
+
+  @media (max-width: 880px) {
+    nav.links { display: none; }
+    .lang { margin-left: auto; }
+    .hero { padding: 56px 0 48px; }
+    .hero .wrap, .split { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+    .grid3, .grid2, .how, .dl, .gallery { grid-template-columns: minmax(0, 1fr); }
+    section { padding: 56px 0; }
+    .panel { max-width: 360px; }
+    .shot-panel { margin: 0 auto; }
+  }
+  @media (max-width: 520px) {
+    .wrap { padding: 0 16px; }
+    .window { grid-template-columns: 1fr; }
+    .window .side { display: none; }
+    .lead { font-size: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="../icon.png" alt="">Sweeper</a>
+    <nav class="links">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#safety">Safety</a>
+      <a href="#download">Download</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="lang" href="../" hreflang="ko" lang="ko">한국어</a>
+    <a class="btn btn-primary btn-small js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">Download</a>
+  </div>
+</header>
+
+<main>
+<div class="hero">
+  <div class="glow"><i></i><i></i><i></i></div>
+  <div class="wrap">
+    <div>
+      <div class="badges">
+        <span class="eyebrow">A cleaner made for developer Macs</span>
+        <span class="beta">BETA</span>
+        <a href="#limits">Known limitations</a><span style="color:var(--outline)">·</span><a href="https://github.com/dev-fath/Sweeper-releases/issues/new">Send feedback</a>
+      </div>
+      <h1>It shows you<br><em>everything</em> it deletes</h1>
+      <p class="lead">If you've ever dug through <code>~/Library</code> to free up space, Sweeper does that for you. Beyond caches and logs, it finds what piles up when you build software: Docker images, Xcode build data, old node_modules. It leaves your logins, cookies, and SSH keys alone.</p>
+      <div class="cta">
+        <a class="btn btn-primary js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+          <span class="js-download-label">Download for Mac</span>
+        </a>
+        <a class="btn btn-ghost" href="#safety">See what it never deletes →</a>
+      </div>
+      <p class="meta">Free · macOS 14 or later · Apple Silicon &amp; Intel <span class="js-version"></span></p>
+    </div>
+
+    <img class="shot" src="../images/en/devtools.jpg" width="1800" height="1350" alt="Sweeper's Dev Tools Cleanup screen. Every item shows a risk level and why it can be deleted." fetchpriority="high">
+  </div>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <h2>Three clicks and you're done</h2>
+    <p class="intro">There's almost nothing to set up or learn. Scan, look, and pick.</p>
+    <div class="how">
+      <div class="card">
+        <span class="num"></span>
+        <h3>Scan</h3>
+        <p>One click scans caches, logs, developer tools, and large files. Nothing is deleted at this step.</p>
+        <div class="sample"><s>Scan complete</s><br>Junk Files <i>4.2 GB</i> · Dev Tools <i>31.8 GB</i></div>
+      </div>
+      <div class="card">
+        <span class="num"></span>
+        <h3>Review and pick</h3>
+        <p>Every item has a risk level and a reason it can go. Only Safe items are checked for you. You pick the rest.</p>
+        <div class="sample">Xcode DerivedData · 12.4 GB · <i>Safe</i><br><s>Rebuilt on the next build</s></div>
+      </div>
+      <div class="card">
+        <span class="num"></span>
+        <h3>Clean up and check the log</h3>
+        <p>Before cleaning, it shows once more what goes to the Trash and what gets deleted right away. Afterward, everything is logged.</p>
+        <div class="sample"><i>16.5 GB</i> freed · 0 deleted permanently<br><s>Saved to Cleanup History</s></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="why" class="alt">
+  <div class="wrap">
+    <h2>Don't trust Mac cleaners? Fair enough.</h2>
+    <p class="intro">"Don't install a cleaner app" is common advice in Mac communities, and for good reason. They overstate results, delete too much, and run all the time. Sweeper is built the other way around.</p>
+    <div class="grid3">
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>When in doubt, it doesn't delete</h3>
+        <p>Logins, cookies, browsing history, and keys never even show up in the list. Anything uncertain goes to the Trash, so you can take it back out if you change your mind. Every cleanup is logged.</p>
+      </div>
+      <div class="card">
+        <div class="icon s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg></div>
+        <h3>It knows developer clutter</h3>
+        <p>Docker, Xcode, simulators, Gradle, node_modules, old Node versions from nvm, finished git worktrees. Most cleaners don't know about these, and they're usually where the space went.</p>
+      </div>
+      <div class="card">
+        <div class="icon m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>Just the numbers</h3>
+        <p>No "optimization score," no memory cleaner, no virus scan. Only sizes it actually measured and space it actually freed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="intro">Every item is marked Safe, Caution, or Needs review, with a one-line reason it can go. Only Safe items, which come back on their own, are checked from the start.</p>
+
+    <div class="feature-group">
+      <p class="group-label">Clean Up</p>
+      <div class="feat">
+        <div><b>Junk Files</b><span>System and app caches, logs, Mail attachments, Trash</span></div>
+        <div><b>Dev Tools Cleanup</b><span>Xcode, simulators, Android, Docker, package caches, Ollama models</span></div>
+        <div><b>Suggestions</b><span>Old downloads and installers, iPhone backups, merged worktrees, large folders. Nothing is preselected here, so review and pick</span></div>
+        <div><b>Desktop Cleanup</b><span>Moves screenshots, documents, and images into folders by type. Undo within 7 days</span></div>
+      </div>
+    </div>
+    <div class="feature-group">
+      <p class="group-label">Space</p>
+      <div class="feat">
+        <div><b>Large &amp; Duplicate Files</b><span>Finds files with identical content and keeps one original for you</span></div>
+        <div><b>Similar Photos</b><span>Groups near-identical photos, like burst shots</span></div>
+        <div><b>System Data</b><span>Breaks down what's actually inside the vague "System Data" in Settings</span></div>
+        <div><b>Space Map</b><span>Shows which folders take up the most space, as a sunburst map</span></div>
+      </div>
+    </div>
+    <div class="feature-group">
+      <p class="group-label">Manage</p>
+      <div class="feat">
+        <div><b>App Management</b><span>When you delete an app, its settings, caches, and support folders go to the Trash with it</span></div>
+        <div><b>Startup &amp; Activity</b><span>Review Login Items and background items, and see which apps use the most memory and CPU</span></div>
+        <div><b>Cleanup History</b><span>What was cleaned, when, how much, and where it went</span></div>
+      </div>
+    </div>
+
+    <div class="chips" aria-label="Developer tools it finds">
+      <span>Docker</span><span>Xcode DerivedData</span><span>DeviceSupport</span><span>iOS simulators</span><span>Android emulators &amp; SDK</span><span>Gradle</span><span>CocoaPods</span><span>node_modules</span><span>Old Node versions (nvm)</span><span>npm &amp; pnpm caches</span><span>Old JetBrains settings</span><span>Ollama models</span><span>git worktrees</span>
+    </div>
+
+    <h3 style="margin:48px 0 0;font-size:20px;letter-spacing:-.015em">What's new</h3>
+    <div class="updates">
+      <div><b>0.8.0</b><span>Now in English. If your Mac isn't set to Korean, the app, menu bar, and notifications all appear in English.</span></div>
+      <div><b>0.7.0</b><span>Tells you about leftover files when you move an app to the Trash, and when your Desktop piles up or old installers collect in Downloads.</span></div>
+      <div><b>0.6.1</b><span>The menu bar panel shows the five apps using the most CPU or memory. Hover over one to quit it.</span></div>
+      <div><b>0.6.0</b><span>Show CPU, memory, and disk usage in the menu bar. Click the icon to see battery and network too.</span></div>
+    </div>
+    <p style="margin:14px 0 0;font-size:14px"><a href="https://github.com/dev-fath/Sweeper-releases/releases">Full release notes →</a></p>
+  </div>
+</section>
+
+<section id="screens" class="alt">
+  <div class="wrap">
+    <h2>Take a look</h2>
+    <p class="intro">Real app screens, from scan to cleanup.</p>
+    <div class="gallery">
+      <figure><img class="shot" src="../images/en/home.jpg" width="1800" height="1350" alt="Home screen" loading="lazy"><figcaption><b>Home</b>How much you can free and the biggest items, on one screen.</figcaption></figure>
+      <figure><img class="shot" src="../images/en/confirm.jpg" width="1800" height="1350" alt="Cleanup confirmation" loading="lazy"><figcaption><b>Review before cleaning</b>Shows what gets deleted right away and what goes to the Trash.</figcaption></figure>
+      <figure><img class="shot" src="../images/en/result.jpg" width="1800" height="1350" alt="Cleanup complete" loading="lazy"><figcaption><b>Cleanup complete</b>How much was freed and what happened to each item.</figcaption></figure>
+      <figure><img class="shot" src="../images/en/spacemap.jpg" width="1800" height="1350" alt="Space Map" loading="lazy"><figcaption><b>Space Map</b>See how much space each folder takes.</figcaption></figure>
+    </div>
+    <p class="shot-note">Numbers and file names in these screens are examples.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap split">
+    <div>
+      <h2>It tells you first, from the menu bar</h2>
+      <p class="intro" style="margin-bottom:20px">Click the menu bar icon to see CPU, memory, storage, and the apps using the most right now. When there's something to clean, Sweeper sends a notification, but it only deletes when you click.</p>
+      <ul class="list">
+        <li><b>Move an app to the Trash</b> and Sweeper asks whether to clean up the files it left behind<span class="tag-new">New</span></li>
+        <li><b>When your Desktop piles up</b>, it lets you know. You can also have it tidy up while you're away. Files you touched today stay put<span class="tag-new">New</span></li>
+        <li><b>When old installers pile up in Downloads</b>, it lets you know<span class="tag-new">New</span></li>
+        <li><b>When storage runs low</b>, it lets you know. Each notification can be turned off in Settings</li>
+      </ul>
+    </div>
+    <img class="shot shot-panel" src="../images/en/menubar.png" width="640" height="1438" alt="Menu bar panel with CPU, memory, top apps, storage, battery, and network" loading="lazy">
+  </div>
+</section>
+
+<section id="safety" class="alt">
+  <div class="wrap">
+    <h2>Things it never deletes</h2>
+    <p class="intro">No matter which screen you picked something from, Sweeper checks again right before deleting. Anything on this list is skipped.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="icon m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+        <h3>Hands off</h3>
+        <ul class="list no">
+          <li><b>Keys and credentials</b>: SSH and GPG keys; AWS, Google Cloud, GitHub CLI, npm, and git credentials; Keychain</li>
+          <li><b>Browser data</b>: cookies, logins, history, bookmarks</li>
+          <li><b>Personal data</b>: Mail, Messages, Safari, Photos library</li>
+          <li><b>Cloud</b>: iCloud Drive and cloud storage folders</li>
+          <li><b>App settings and data</b>: only go to the Trash when you delete that app</li>
+          <li><b>Company security and management software</b>: never deleted or turned off</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></div>
+        <h3>Rules it follows when deleting</h3>
+        <ul class="list">
+          <li>Only <b>Safe</b> items are checked for you. They're things like caches that come back, so they're deleted right away</li>
+          <li><b>Large and duplicate files, and files left by deleted apps</b>, go to the Trash. You can take them back out until you empty it</li>
+          <li>If anything can't be undone, like a Docker volume, the confirmation calls it out: <b>"N items will be deleted permanently"</b></li>
+          <li>Every cleanup is logged in <code>~/Library/Logs/Sweeper</code></li>
+          <li>It <b>doesn't collect</b> usage data or personal information</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2>Get it free</h2>
+    <p class="intro">Once it's installed, the app checks for updates on its own.</p>
+    <div class="dl">
+      <div class="card dl-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+        <h3>Sweeper for Mac</h3>
+        <ul class="list">
+          <li>macOS 14 Sonoma or later · English and Korean</li>
+          <li>Apple Silicon and Intel (one universal app)</li>
+          <li>DMG about 11 MB</li>
+          <li>Not notarized yet, so the first launch needs <b>Open Anyway</b></li>
+        </ul>
+        <a class="btn btn-primary js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="js-download-label">Download for Mac</span></a>
+      </div>
+      <div>
+    <ol class="steps">
+      <li>Download the <a class="js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">latest DMG</a>, open it, and drag <b>Sweeper</b> to the <b>Applications</b> folder.</li>
+      <li>The first time you open Sweeper, macOS says it can't be opened. That's expected. Click <b>Done</b>.</li>
+      <li>Go to <b>System Settings → Privacy &amp; Security</b>, scroll down, and click <b>Open Anyway</b> → enter your password → <b>Open</b>. You only need to do this once.</li>
+      <li>To include the Trash, Mail attachments, messenger caches, and iPhone backups, turn on Sweeper under <b>Full Disk Access</b> on the same screen.</li>
+    </ol>
+      </div>
+    </div>
+    <div class="note"><b>Why the extra steps?</b> Sweeper isn't notarized by Apple yet. There's more in the <a href="#faq-notarize">FAQ</a>.</div>
+  </div>
+</section>
+
+<section id="limits" class="alt">
+  <div class="wrap">
+    <h2>Known limitations</h2>
+    <p class="intro">It's still being polished, so here's what to expect.</p>
+    <ul class="list" style="max-width:44em">
+      <li><b>Not notarized by Apple yet.</b> macOS blocks it the first time you open it. The install steps above show how to open it.</li>
+      <li>The Trash, Mail attachments, messenger caches, and iPhone backups only show up with <b>Full Disk Access</b>.</li>
+      <li><b>Similar Photos</b> needs access to your Photos library.</li>
+      <li>The app is in <b>English and Korean</b> only for now.</li>
+      <li>It's made by one person, so replies can take a little while. Please report problems or ideas as a <a href="https://github.com/dev-fath/Sweeper-releases/issues/new">GitHub issue</a>.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <div style="margin-top:28px">
+      <details id="faq-notarize">
+        <summary>I get a warning when I open it.</summary>
+        <p>That's because Sweeper isn't notarized by Apple yet. Go to System Settings › Privacy &amp; Security, scroll down, and click "Open Anyway."</p>
+      </details>
+      <details>
+        <summary>Is it free?</summary>
+        <p>The current version is free.</p>
+      </details>
+      <details>
+        <summary>Will it make my Mac faster?</summary>
+        <p>It doesn't promise that. What Sweeper does is get storage space back. Features with doubtful benefits, like memory cleaning, are left out on purpose.</p>
+      </details>
+      <details>
+        <summary>Can I get deleted files back?</summary>
+        <p>Anything sent to the Trash (large and duplicate files, files left by deleted apps, and so on) can be restored until you empty the Trash. Safe items like caches are deleted right away, but apps rebuild them when they need them. If anything can't be undone, Sweeper tells you how many before it cleans.</p>
+      </details>
+      <details>
+        <summary>Do I have to turn on Full Disk Access?</summary>
+        <p>No. Caches and developer tools can be cleaned without it. Turn it on when you want to include places macOS protects, like the Trash, Mail attachments, messenger caches, and iPhone backups.</p>
+      </details>
+      <details>
+        <summary>Is it always running?</summary>
+        <p>It stays in the menu bar and checks whether there's anything to tell you. The menu bar icon, notifications, and Open at Login can all be turned off in Settings.</p>
+      </details>
+      <details>
+        <summary>Does it send my data anywhere?</summary>
+        <p>No. The only time it goes online is to check GitHub for updates.</p>
+      </details>
+      <details>
+        <summary>Can I use it on a work Mac?</summary>
+        <p>Sweeper is blocked from deleting or turning off company security and management software. Still, every company has its own rules, so check yours.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>Start with a scan</h2>
+    <p class="lead">Before anything is deleted, it shows how much you can free. If you don't like what you see, just close it.</p>
+    <div class="cta">
+      <a class="btn btn-primary js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+        <span class="js-download-label">Download for Mac</span>
+      </a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Sweeper <span class="js-version-plain"></span> · © 2026 devfath</span>
+    <span style="display:flex;gap:18px;flex-wrap:wrap"><a href="https://github.com/dev-fath/Sweeper-releases/releases">Release notes</a><a href="https://github.com/dev-fath/Sweeper-releases/issues/new">Send feedback</a><a href="https://github.com/dev-fath/Sweeper-releases">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+  // Point download buttons at the latest DMG; keep the releases page link if the request fails.
+  fetch("https://api.github.com/repos/dev-fath/Sweeper-releases/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function (rel) {
+      var dmg = (rel.assets || []).find(function (a) { return /\.dmg$/i.test(a.name); });
+      if (!dmg) return;
+      document.querySelectorAll(".js-download").forEach(function (a) { a.href = dmg.browser_download_url; });
+      var v = (rel.tag_name || "").replace(/^v/, "");
+      if (v) {
+        document.querySelectorAll(".js-download-label").forEach(function (s) { s.textContent = "Download for Mac · " + v; });
+        document.querySelectorAll(".js-version").forEach(function (s) { s.textContent = "· latest " + v; });
+        document.querySelectorAll(".js-version-plain").forEach(function (s) { s.textContent = "v" + v; });
+      }
+    })
+    .catch(function () {});
+  // Open the FAQ item a link points to (e.g. #faq-notarize).
+  function openTargetDetails() {
+    var el = location.hash && document.getElementById(location.hash.slice(1));
+    if (el && el.tagName === "DETAILS") el.open = true;
+  }
+  window.addEventListener("hashchange", openTargetDetails);
+  openTargetDetails();
+</script>
+</body>
+</html>
