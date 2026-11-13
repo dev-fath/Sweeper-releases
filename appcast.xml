@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>Sweeper</title>
+    <title>Squeakly</title>
     <item>
-      <title>0.8.0</title>
-      <pubDate>Fri, 13 Nov 2026 09:54:47 +0900</pubDate>
-      <sparkle:version>222</sparkle:version>
-      <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
+      <title>0.9.0</title>
+      <pubDate>Fri, 13 Nov 2026 10:55:33 +0900</pubDate>
+      <sparkle:version>225</sparkle:version>
+      <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/dev-fath/Sweeper-releases/releases/tag/v0.8.0</sparkle:releaseNotesLink>
-      <enclosure url="https://github.com/dev-fath/Sweeper-releases/releases/download/v0.8.0/Sweeper-0.8.0.zip" sparkle:edSignature="PHlFKB1PY33BFp/Wud0lQR0pjUxxhrhAsvEsKBQHkm3AYk9tAqOAOFWyFT/yjnYKwUh56ntwKZlDWdv88V56Dg==" length="10188334" type="application/octet-stream"/>
+      <sparkle:releaseNotesLink>https://github.com/dev-fath/Sweeper-releases/releases/tag/v0.9.0</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/dev-fath/Sweeper-releases/releases/download/v0.9.0/Squeakly-0.9.0.zip" sparkle:edSignature="iWIeY2yMpdtsPTh3Na+rxNi9Vt1j35d6lCwyMQ/4dzRAF2BPXvYxHY1R5XXNfmtwhRUqgs1/f6OaeshbIwLMAw==" length="10187530" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
