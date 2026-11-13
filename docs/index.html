@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sweeper — 뭘 지우는지 다 보여 주는 맥 정리 앱</title>
+<meta name="description" content="뭘 왜 지우는지 다 보여 주고 지우는 맥 정리 앱이에요. Docker · Xcode · node_modules 처럼 개발하다 쌓이는 것까지 찾아 주고, 로그인 정보 · 쿠키 · 키는 건드리지 않아요.">
+<meta property="og:title" content="Sweeper — 뭘 지우는지 다 보여 주는 맥 정리 앱">
+<meta property="og:description" content="뭘 왜 지우는지 다 보여 주고 지우는 맥 정리 앱. 개발자 맥에 특히 잘 맞아요.">
+<meta property="og:image" content="icon.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --bg: #0d1513; --lowest: #08100e; --low: #151d1b; --c1: #19211f; --high: #232c29; --highest: #2e3634;
+    --on: #dce4e1; --onv: #bfc9c1; --outline: #89938c; --line: rgba(64, 73, 67, .55);
+    --primary: #90d5b2; --pc: #0d593e; --pfixed: #abf1cd;
+    --secondary: #ffa9fe; --sc: #9501a3; --tertiary: #81d1f0; --tc: #00556b;
+    --radius: 16px; --max: 1080px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: var(--on); background: var(--bg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+    word-break: keep-all; overflow-wrap: break-word; overflow-x: hidden;
+  }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font: 500 .88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--high); padding: .15em .45em; border-radius: 6px; color: var(--on); }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
+
+  /* 빛 번짐 */
+  .glow { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .glow i { position: absolute; border-radius: 50%; filter: blur(120px); }
+  .glow i:nth-child(1) { width: 520px; height: 520px; left: -160px; top: -120px; background: rgba(13, 89, 62, .45); }
+  .glow i:nth-child(2) { width: 460px; height: 460px; right: -140px; top: 120px; background: rgba(149, 1, 163, .22); }
+  .glow i:nth-child(3) { width: 360px; height: 360px; left: 40%; top: 420px; background: rgba(0, 85, 107, .25); }
+
+  /* 머리 */
+  header.top { position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(160%) blur(16px); -webkit-backdrop-filter: saturate(160%) blur(16px); background: rgba(13, 21, 19, .72); border-bottom: 1px solid var(--line); }
+  header.top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; color: var(--on); letter-spacing: -.01em; }
+  .brand:hover { text-decoration: none; }
+  .brand img { width: 28px; height: 28px; }
+  nav.links { display: flex; gap: 22px; margin-left: auto; font-size: 14px; }
+  nav.links a { color: var(--onv); }
+  nav.links a:hover { color: var(--on); text-decoration: none; }
+
+  /* 버튼 */
+  .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; transition: transform .15s ease, box-shadow .15s ease; }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: #fff; color: var(--lowest); padding: 14px 26px; font-size: 16px; box-shadow: 0 0 24px rgba(255, 255, 255, .18); }
+  .btn-primary:hover { box-shadow: 0 0 32px rgba(255, 255, 255, .3); }
+  .btn-small { padding: 8px 16px; font-size: 14px; }
+  .btn-ghost { color: var(--on); padding: 14px 18px; font-size: 15px; }
+  .btn svg { width: 18px; height: 18px; }
+
+  /* 히어로 */
+  .hero { position: relative; padding: 88px 0 72px; }
+  .hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; color: var(--primary); background: rgba(144, 213, 178, .12); border-radius: 999px; padding: 5px 12px; margin-bottom: 18px; }
+  h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.18; letter-spacing: -.03em; margin: 0 0 20px; font-weight: 700; }
+  h1 em { font-style: normal; color: var(--primary); }
+  .lead { font-size: 18px; color: var(--onv); margin: 0 0 32px; max-width: 34em; }
+  .cta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .meta { margin-top: 14px; font-size: 13px; color: var(--outline); }
+
+  /* 앱 창 모형 */
+  .window { background: linear-gradient(160deg, var(--bg), var(--lowest) 60%, var(--low)); border-radius: 14px; border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(0, 0, 0, .4); overflow: hidden; display: grid; grid-template-columns: 150px minmax(0, 1fr); font-size: 12px; min-height: 360px; }
+  .window .side { background: rgba(8, 16, 14, .8); padding: 12px 10px; border-right: 1px solid var(--line); }
+  .lights { display: flex; gap: 6px; margin-bottom: 14px; }
+  .lights b { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+  .lights b:nth-child(2) { background: #febc2e; } .lights b:nth-child(3) { background: #28c840; }
+  .side .label { font-size: 9px; letter-spacing: .1em; color: var(--outline); margin: 12px 6px 4px; }
+  .side .item { padding: 5px 8px; border-radius: 6px; color: var(--onv); }
+  .side .item.on { background: rgba(13, 89, 62, .6); color: #89ceab; font-weight: 600; }
+  .window .main { min-width: 0; padding: 16px 16px 0; display: flex; flex-direction: column; }
+  .main h4 { margin: 0 0 2px; font-size: 15px; letter-spacing: -.01em; }
+  .main .sub { color: var(--outline); font-size: 11px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; gap: 10px; background: rgba(25, 33, 31, .7); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+  .tile { width: 26px; height: 26px; border-radius: 7px; background: rgba(13, 89, 62, .5); display: grid; place-items: center; color: var(--primary); font-size: 13px; flex: none; }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b { display: block; font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t span { color: var(--outline); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .pill { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill.safe { color: var(--primary); background: rgba(144, 213, 178, .16); }
+  .pill.warn { color: var(--tertiary); background: rgba(129, 209, 240, .16); }
+  .pill.judge { color: var(--secondary); background: rgba(255, 169, 254, .16); }
+  .size { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 52px; text-align: right; }
+  .check { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--outline); flex: none; }
+  .check.on { background: var(--primary); border-color: var(--primary); box-shadow: inset 0 0 0 3px var(--c1); }
+  .bar { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding: 10px 0 12px; border-top: 1px solid var(--line); margin-top: 8px; }
+  .bar span { color: var(--onv); font-size: 11px; }
+  .bar i { font-style: normal; background: #fff; color: var(--lowest); font-weight: 650; padding: 5px 12px; border-radius: 999px; font-size: 11px; }
+
+  /* 구역 */
+  section { position: relative; padding: 72px 0; }
+  section.alt { background: linear-gradient(180deg, rgba(8, 16, 14, .6), rgba(8, 16, 14, .2)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  h2 { font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -.025em; line-height: 1.3; margin: 0 0 12px; }
+  .intro { color: var(--onv); margin: 0 0 40px; max-width: 40em; font-size: 17px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .card { background: rgba(21, 29, 27, .75); border-radius: var(--radius); padding: 26px; position: relative; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+  .card::before { content: ""; position: absolute; top: 0; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .18), transparent); }
+  .card h3 { margin: 14px 0 8px; font-size: 19px; letter-spacing: -.015em; }
+  .card p { margin: 0; color: var(--onv); font-size: 15px; }
+  .icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(13, 89, 62, .5); color: var(--primary); }
+  .icon.m { background: rgba(149, 1, 163, .35); color: var(--secondary); }
+  .icon.s { background: rgba(0, 85, 107, .5); color: var(--tertiary); }
+  .icon svg { width: 22px; height: 22px; }
+
+  /* 기능 묶음 */
+  .feature-group { margin-bottom: 36px; }
+  .feature-group:last-child { margin-bottom: 0; }
+  .group-label { font-size: 12px; font-weight: 650; letter-spacing: .12em; color: var(--outline); margin: 0 0 12px; }
+  .feat { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .feat div { background: rgba(25, 33, 31, .7); border-radius: 12px; padding: 18px 20px; }
+  .feat b { display: block; font-size: 16px; margin-bottom: 4px; }
+  .feat span { color: var(--onv); font-size: 14px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .chips span { background: var(--high); color: var(--on); border-radius: 999px; padding: 6px 14px; font-size: 14px; }
+
+  /* 안전 */
+  ul.list { list-style: none; padding: 0; margin: 14px 0 0; }
+  ul.list li { position: relative; padding-left: 26px; margin-bottom: 10px; color: var(--onv); font-size: 15px; }
+  ul.list li::before { content: ""; position: absolute; left: 2px; top: .5em; width: 12px; height: 12px; border-radius: 50%; background: rgba(144, 213, 178, .2); box-shadow: inset 0 0 0 3px var(--primary); }
+  ul.list.no li::before { background: none; box-shadow: none; width: auto; height: auto; top: 0; content: "✕"; color: var(--secondary); font-weight: 700; font-size: 13px; }
+  ul.list b { color: var(--on); font-weight: 600; }
+
+  /* 메뉴 막대 모형 */
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; align-items: center; }
+  .panel { background: rgba(30, 38, 36, .92); border: 1px solid rgba(255, 255, 255, .08); border-radius: 14px; padding: 14px; font-size: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+  .panel .hd { display: flex; justify-content: space-between; color: var(--outline); font-size: 11px; margin-bottom: 10px; }
+  .stat { display: grid; grid-template-columns: 52px 1fr 40px; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .stat .lbl { color: var(--onv); }
+  .stat .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .meter { height: 6px; border-radius: 999px; background: var(--highest); overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+  .meter.t i { background: var(--tertiary); } .meter.m i { background: var(--secondary); }
+  .panel .seg { display: flex; background: var(--high); border-radius: 7px; padding: 2px; margin: 12px 0 8px; }
+  .panel .seg span { flex: 1; text-align: center; padding: 3px; border-radius: 5px; color: var(--onv); font-size: 11px; }
+  .panel .seg span.on { background: var(--highest); color: var(--on); font-weight: 600; }
+  .app { display: flex; justify-content: space-between; padding: 5px 4px; border-radius: 6px; color: var(--onv); }
+  .app b { color: var(--on); font-weight: 500; }
+
+  /* 설치 */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  ol.steps li { counter-increment: s; position: relative; background: rgba(25, 33, 31, .7); border-radius: 12px; padding: 18px 20px 18px 64px; color: var(--onv); }
+  ol.steps li::before { content: counter(s); position: absolute; left: 20px; top: 16px; width: 30px; height: 30px; border-radius: 50%; background: rgba(13, 89, 62, .6); color: var(--primary); font-weight: 700; display: grid; place-items: center; }
+  ol.steps b { color: var(--on); }
+  .note { margin-top: 16px; padding: 16px 20px; border-radius: 12px; background: rgba(0, 85, 107, .25); color: var(--onv); font-size: 14px; }
+  .note b { color: var(--tertiary); }
+
+  /* 자주 묻는 질문 */
+  details { background: rgba(25, 33, 31, .7); border-radius: 12px; margin-bottom: 10px; }
+  summary { cursor: pointer; padding: 18px 22px; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--outline); font-weight: 400; font-size: 20px; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { margin: 0; padding: 0 22px 20px; color: var(--onv); font-size: 15px; }
+  details p + p { margin-top: -8px; }
+  details p b { color: var(--on); }
+
+  .final { text-align: center; padding: 88px 0; }
+  .final .lead { margin-left: auto; margin-right: auto; }
+  .final .cta { justify-content: center; }
+  footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--outline); font-size: 13px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+  footer a { color: var(--onv); }
+
+  /* 배지 */
+  .badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .badges .eyebrow { margin: 0; }
+  .beta { font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--secondary); background: rgba(255, 169, 254, .14); border-radius: 999px; padding: 5px 10px; }
+  .badges a { font-size: 13px; color: var(--onv); }
+  .tag-new { display: inline-block; vertical-align: 2px; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--secondary); background: rgba(255, 169, 254, .14); border-radius: 999px; padding: 1px 8px; }
+
+  /* 사용법 */
+  .how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: h; }
+  .how .card { counter-increment: h; }
+  .how .num { font-size: 13px; font-weight: 700; color: var(--primary); }
+  .how .num::before { content: "0" counter(h); }
+  .sample { margin-top: 16px; font: 500 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--on); background: var(--lowest); border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line); }
+  .sample i { font-style: normal; color: var(--primary); }
+  .sample s { text-decoration: none; color: var(--outline); }
+
+  /* 최근 업데이트 */
+  .updates { margin-top: 40px; display: grid; gap: 10px; }
+  .updates div { display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: baseline; padding: 14px 18px; border-radius: 12px; background: rgba(25, 33, 31, .7); }
+  .updates b { font-variant-numeric: tabular-nums; color: var(--primary); font-size: 14px; }
+  .updates span { color: var(--onv); font-size: 15px; }
+
+  /* 다운로드 */
+  .dl { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .dl-card { text-align: left; }
+  .dl-card .btn { margin-top: 18px; }
+  .dl-card ul.list { margin-top: 18px; }
+
+  /* 스크린샷 */
+  .shot { display: block; width: 100%; max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .08); }
+  .shot-panel { width: 320px; max-width: 100%; border-radius: 14px; }
+  .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 24px; }
+  .gallery figure { margin: 0; }
+  .gallery figcaption { margin-top: 12px; color: var(--onv); font-size: 15px; }
+  .gallery figcaption b { color: var(--on); margin-right: 6px; }
+  .shot-note { margin-top: 20px; font-size: 13px; color: var(--outline); }
+
+  @media (max-width: 880px) {
+    nav.links { display: none; }
+    header.top .btn { margin-left: auto; }
+    .hero { padding: 56px 0 48px; }
+    .hero .wrap, .split { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+    .grid3, .grid2, .how, .dl, .gallery { grid-template-columns: minmax(0, 1fr); }
+    section { padding: 56px 0; }
+    .panel { max-width: 360px; }
+    .shot-panel { margin: 0 auto; }
+  }
+  @media (max-width: 520px) {
+    .wrap { padding: 0 16px; }
+    .window { grid-template-columns: 1fr; }
+    .window .side { display: none; }
+    .lead { font-size: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="icon.png" alt="">Sweeper</a>
+    <nav class="links">
+      <a href="#how">사용법</a>
+      <a href="#features">기능</a>
+      <a href="#safety">안전 원칙</a>
+      <a href="#download">다운로드</a>
+      <a href="#faq">자주 묻는 질문</a>
+    </nav>
+    <a class="btn btn-primary btn-small js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">내려받기</a>
+  </div>
+</header>
+
+<main>
+<div class="hero">
+  <div class="glow"><i></i><i></i><i></i></div>
+  <div class="wrap">
+    <div>
+      <div class="badges">
+        <span class="eyebrow">개발자 맥에 특히 잘 맞는 정리 앱</span>
+        <span class="beta">BETA</span>
+        <a href="#limits">알려진 제한 사항</a><span style="color:var(--outline)">·</span><a href="https://github.com/dev-fath/Sweeper-releases/issues/new">피드백 보내기</a>
+      </div>
+      <h1>뭘 지우는지<br><em>다 보여 주고</em> 지워요</h1>
+      <p class="lead">용량이 모자라서 <code>~/Library</code> 를 뒤져 본 적이 있다면, 그 일을 대신 해 주는 앱이에요. 캐시나 로그는 물론이고 Docker 이미지, Xcode 빌드 찌꺼기, 오래된 node_modules 처럼 개발하다 보면 쌓이는 것들까지 찾아 줘요. 로그인 정보나 쿠키, SSH 키 같은 건 건드리지 않아요.</p>
+      <div class="cta">
+        <a class="btn btn-primary js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+          <span class="js-download-label">맥용 내려받기</span>
+        </a>
+        <a class="btn btn-ghost" href="#safety">안 지우는 것부터 보기 →</a>
+      </div>
+      <p class="meta">무료 · macOS 14 이상 · Apple Silicon · Intel <span class="js-version"></span></p>
+    </div>
+
+    <img class="shot" src="images/ko/devtools.jpg" width="1800" height="1350" alt="Sweeper 개발도구 정리 화면 — 항목마다 위험도와 지워도 되는 이유가 붙어 있어요" fetchpriority="high">
+  </div>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <h2>세 번 누르면 끝나요</h2>
+    <p class="intro">설정할 것도, 배울 것도 거의 없어요. 검사하고, 보고, 고르면 돼요.</p>
+    <div class="how">
+      <div class="card">
+        <span class="num"></span>
+        <h3>검사하기</h3>
+        <p>스캔 단추 하나면 캐시, 로그, 개발 도구, 큰 파일까지 한 번에 훑어요. 이때는 아무것도 지우지 않아요.</p>
+        <div class="sample"><s>검사 끝</s><br>정크파일 <i>4.2 GB</i> · 개발도구 <i>31.8 GB</i></div>
+      </div>
+      <div class="card">
+        <span class="num"></span>
+        <h3>보고 고르기</h3>
+        <p>항목마다 위험도와 지워도 되는 이유가 붙어 있어요. 미리 체크된 건 안전 항목뿐이고, 나머지는 직접 골라요.</p>
+        <div class="sample">Xcode DerivedData · 12.4 GB · <i>안전</i><br><s>빌드할 때 다시 만들어져요</s></div>
+      </div>
+      <div class="card">
+        <span class="num"></span>
+        <h3>정리하고 기록 보기</h3>
+        <p>정리 전에 무엇이 휴지통으로 가고 무엇이 바로 지워지는지 한 번 더 보여 줘요. 끝나면 기록이 남아요.</p>
+        <div class="sample"><i>16.5 GB</i> 비움 · 영구 삭제 0개<br><s>정리 기록에 남겼어요</s></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="why" class="alt">
+  <div class="wrap">
+    <h2>클리너 앱, 솔직히 좀 불안하죠</h2>
+    <p class="intro">맥 커뮤니티에서는 "클리너 앱은 깔지 마라"는 말이 자주 나와요. 효과는 부풀리고, 너무 많이 지우고, 쓸데없이 늘 켜져 있으니까요. 그래서 Sweeper 는 이렇게 만들었어요.</p>
+    <div class="grid3">
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>애매하면 안 지워요</h3>
+        <p>로그인 정보, 쿠키, 방문 기록, 각종 키는 목록에 아예 안 올라와요. 확신이 없는 건 휴지통으로 보내니까 마음이 바뀌면 꺼내면 되고요. 뭘 지웠는지는 기록으로 남아요.</p>
+      </div>
+      <div class="card">
+        <div class="icon s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg></div>
+        <h3>개발하다 쌓인 것까지</h3>
+        <p>Docker, Xcode, 시뮬레이터, Gradle, node_modules, nvm 으로 깔아 둔 옛 Node, 다 쓴 git worktree. 보통 클리너는 잘 모르는 것들인데, 용량은 이쪽이 훨씬 커요.</p>
+      </div>
+      <div class="card">
+        <div class="icon m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>숫자로만 말해요</h3>
+        <p>"최적화 점수"나 메모리 정리, 바이러스 검사 같은 건 없어요. 실제로 잰 크기와 실제로 비운 용량만 보여 줘요.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>할 수 있는 것들</h2>
+    <p class="intro">항목마다 안전 · 주의 · 판단 필요 중 하나가 붙고, 왜 지워도 되는지 한 줄 설명이 같이 나와요. 처음부터 체크돼 있는 건 지워도 다시 생기는 '안전' 항목뿐이에요.</p>
+
+    <div class="feature-group">
+      <p class="group-label">정리</p>
+      <div class="feat">
+        <div><b>정크파일 제거</b><span>시스템 · 앱 캐시, 로그, 메일 첨부파일, 휴지통</span></div>
+        <div><b>개발도구 정리</b><span>Xcode, 시뮬레이터, Android, Docker, 패키지 캐시, Ollama 모델</span></div>
+        <div><b>삭제 대상 제안</b><span>오래된 다운로드와 설치 파일, 아이폰 백업, 머지 끝난 worktree, 큰 폴더. 여기는 미리 체크해 두지 않으니 보고 고르면 돼요</span></div>
+        <div><b>바탕화면 정리</b><span>스크린샷, 문서, 이미지를 종류별 폴더로 옮겨요. 7일 안에는 되돌릴 수 있어요</span></div>
+      </div>
+    </div>
+    <div class="feature-group">
+      <p class="group-label">공간</p>
+      <div class="feat">
+        <div><b>대용량 · 중복 파일</b><span>내용이 똑같은 파일을 찾아 줘요. 원본 하나는 알아서 남겨 둬요</span></div>
+        <div><b>비슷한 사진</b><span>연사로 찍은 것처럼 거의 같은 사진끼리 묶어서 보여 줘요</span></div>
+        <div><b>시스템 데이터</b><span>설정 앱에서 "시스템 데이터"라고만 뭉뚱그려 나오는 게 실제로 뭔지 나눠서 보여 줘요</span></div>
+        <div><b>공간 지도</b><span>어느 폴더가 얼마나 차지하는지 원형 지도로 보여 줘요</span></div>
+      </div>
+    </div>
+    <div class="feature-group">
+      <p class="group-label">관리</p>
+      <div class="feat">
+        <div><b>앱 관리</b><span>앱을 지울 때 설정, 캐시, 지원 폴더처럼 남는 파일까지 같이 휴지통으로 보내요</span></div>
+        <div><b>맥 최적화</b><span>로그인할 때 같이 켜지는 앱과 뒤에서 도는 항목을 정리하고, 메모리 · CPU 를 많이 먹는 앱을 보여 줘요</span></div>
+        <div><b>정리 기록</b><span>언제, 뭘, 얼마나 정리했고 어디로 보냈는지 남아요</span></div>
+      </div>
+    </div>
+
+    <div class="chips" aria-label="찾아 주는 개발 도구">
+      <span>Docker</span><span>Xcode DerivedData</span><span>DeviceSupport</span><span>iOS 시뮬레이터</span><span>Android 에뮬레이터 · SDK</span><span>Gradle</span><span>CocoaPods</span><span>node_modules</span><span>nvm 옛 Node 버전</span><span>npm · pnpm 캐시</span><span>JetBrains 옛 설정</span><span>Ollama 모델</span><span>git worktree</span>
+    </div>
+
+    <h3 style="margin:48px 0 0;font-size:20px;letter-spacing:-.015em">최근에 들어온 것</h3>
+    <div class="updates">
+      <div><b>0.8.0</b><span>영어 화면을 지원해요. 맥 언어가 한국어가 아니면 화면, 메뉴 막대, 알림이 모두 영어로 나와요.</span></div>
+      <div><b>0.7.0</b><span>앱을 휴지통에 버리면 남은 파일을 알려 줘요. 바탕화면이 쌓이거나 다운로드에 오래된 설치 파일이 모여도 알려 줘요.</span></div>
+      <div><b>0.6.1</b><span>메뉴 막대 패널에 CPU · 메모리를 많이 쓰는 앱 다섯 개가 보여요. 마우스를 올리면 바로 종료할 수 있어요.</span></div>
+      <div><b>0.6.0</b><span>메뉴 막대에 CPU · 메모리 · 디스크 점유율을 띄울 수 있어요. 아이콘을 누르면 배터리 · 네트워크까지 한 번에 보여요.</span></div>
+    </div>
+    <p style="margin:14px 0 0;font-size:14px"><a href="https://github.com/dev-fath/Sweeper-releases/releases">전체 변경 기록 보기 →</a></p>
+  </div>
+</section>
+
+<section id="screens" class="alt">
+  <div class="wrap">
+    <h2>화면 둘러보기</h2>
+    <p class="intro">검사부터 정리가 끝날 때까지, 실제 앱 화면이에요.</p>
+    <div class="gallery">
+      <figure><img class="shot" src="images/ko/home.jpg" width="1800" height="1350" alt="홈 화면" loading="lazy"><figcaption><b>홈</b>얼마나 비울 수 있는지, 큰 항목이 뭔지 한 화면에 보여 줘요.</figcaption></figure>
+      <figure><img class="shot" src="images/ko/confirm.jpg" width="1800" height="1350" alt="정리 확인 창" loading="lazy"><figcaption><b>정리 전 확인</b>바로 지워지는 것과 휴지통으로 가는 것을 나눠서 한 번 더 보여 줘요.</figcaption></figure>
+      <figure><img class="shot" src="images/ko/result.jpg" width="1800" height="1350" alt="정리 완료 화면" loading="lazy"><figcaption><b>정리 완료</b>얼마나 비웠는지, 항목마다 어떻게 됐는지 남아요.</figcaption></figure>
+      <figure><img class="shot" src="images/ko/spacemap.jpg" width="1800" height="1350" alt="공간 지도" loading="lazy"><figcaption><b>공간 지도</b>어느 폴더가 얼마나 차지하는지 원형 지도로 봐요.</figcaption></figure>
+    </div>
+    <p class="shot-note">화면 속 숫자와 파일 이름은 예시예요.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap split">
+    <div>
+      <h2>메뉴 막대에서 먼저 알려 줘요</h2>
+      <p class="intro" style="margin-bottom:20px">메뉴 막대 아이콘을 누르면 CPU, 메모리, 저장 공간과 지금 많이 쓰는 앱이 보여요. 정리할 게 생기면 알림을 보내는데, 지우는 건 항상 직접 눌렀을 때만 해요.</p>
+      <ul class="list">
+        <li><b>앱을 휴지통에 버리면</b> 그 앱이 남긴 파일도 같이 치울지 물어봐요<span class="tag-new">새 기능</span></li>
+        <li><b>바탕화면에 파일이 쌓이면</b> 알려 줘요. 원하면 자리를 비운 사이에 알아서 정리하게 할 수도 있어요. 오늘 만진 파일은 그대로 둬요<span class="tag-new">새 기능</span></li>
+        <li><b>다운로드 폴더에 오래된 설치 파일이 쌓이면</b> 알려 줘요<span class="tag-new">새 기능</span></li>
+        <li><b>저장 공간이 부족해져도</b> 알려 줘요. 알림은 환경설정에서 하나씩 끌 수 있어요</li>
+      </ul>
+    </div>
+    <img class="shot shot-panel" src="images/ko/menubar.png" width="640" height="1438" alt="메뉴 막대 패널 — CPU · 메모리 · 많이 쓰는 앱 · 저장 공간 · 배터리 · 네트워크" loading="lazy">
+  </div>
+</section>
+
+<section id="safety" class="alt">
+  <div class="wrap">
+    <h2>이건 절대 안 지워요</h2>
+    <p class="intro">어느 화면에서 골랐든 지우기 직전에 한 번 더 검사해요. 아래 목록에 걸리면 그냥 건너뛰어요.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="icon m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+        <h3>손대지 않는 것</h3>
+        <ul class="list no">
+          <li><b>키 · 자격 증명</b>: SSH · GPG 키, AWS · Google Cloud · GitHub CLI · npm · git 자격 증명, 키체인</li>
+          <li><b>브라우저 데이터</b>: 쿠키, 로그인 정보, 방문 기록, 북마크</li>
+          <li><b>개인 데이터</b>: 메일, 메시지, Safari, 사진 보관함</li>
+          <li><b>클라우드</b>: iCloud Drive, 클라우드 저장소 폴더</li>
+          <li><b>앱 설정 · 데이터</b>: 그 앱을 지울 때만 같이 휴지통으로 가요</li>
+          <li><b>회사 보안 · 관리 프로그램</b>: 지우지도, 끄지도 않아요</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></div>
+        <h3>지울 때 지키는 것</h3>
+        <ul class="list">
+          <li>미리 체크되는 건 <b>안전</b> 항목뿐이에요. 캐시처럼 다시 생기는 거라 바로 지워요</li>
+          <li><b>대용량 · 중복 파일, 지운 앱이 남긴 파일</b>은 휴지통으로 가요. 비우기 전에는 언제든 꺼낼 수 있어요</li>
+          <li>Docker 볼륨처럼 되돌릴 수 없는 게 섞여 있으면 확인 창에 <b>"영구 삭제 N개"</b>로 따로 보여 줘요</li>
+          <li>지운 기록은 <code>~/Library/Logs/Sweeper</code> 에 남아요</li>
+          <li>사용 통계나 개인 정보는 <b>모으지 않아요</b></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2>무료로 받아 보세요</h2>
+    <p class="intro">한 번 깔고 나면 업데이트는 앱이 알아서 확인해요.</p>
+    <div class="dl">
+      <div class="card dl-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+        <h3>Sweeper for Mac</h3>
+        <ul class="list">
+          <li>macOS 14 Sonoma 이상 · 한국어 · 영어</li>
+          <li>Apple Silicon · Intel 모두 (하나의 앱)</li>
+          <li>DMG 약 11 MB</li>
+          <li>아직 공증 전이라 처음 한 번 <b>그래도 열기</b>가 필요해요</li>
+        </ul>
+        <a class="btn btn-primary js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span class="js-download-label">맥용 내려받기</span></a>
+      </div>
+      <div>
+    <ol class="steps">
+      <li><a class="js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">최신 DMG</a>를 받아서 열고, <b>Sweeper</b> 를 <b>응용 프로그램(Applications)</b> 폴더로 끌어다 놓으세요.</li>
+      <li>Sweeper 를 처음 열면 "열 수 없습니다"라는 창이 떠요. 당황하지 말고 <b>완료</b>를 누르세요.</li>
+      <li><b>시스템 설정 → 개인정보 보호 및 보안</b>으로 가서 맨 아래 <b>그래도 열기</b> → 암호 입력 → <b>열기</b>. 처음 한 번만 하면 돼요.</li>
+      <li>휴지통, 메일 첨부파일, 메신저 캐시, 아이폰 백업까지 보려면 같은 화면의 <b>전체 디스크 접근 권한</b>에서 Sweeper 를 켜 주세요.</li>
+    </ol>
+      </div>
+    </div>
+    <div class="note"><b>왜 이렇게 번거롭냐면</b>, 아직 애플 공증을 받지 않아서 그래요. 자세한 이야기는 <a href="#faq-notarize">자주 묻는 질문</a>에 적어 뒀어요.</div>
+  </div>
+</section>
+
+<section id="limits" class="alt">
+  <div class="wrap">
+    <h2>알려진 제한 사항</h2>
+    <p class="intro">아직 다듬는 중이라 미리 알려 드려요.</p>
+    <ul class="list" style="max-width:44em">
+      <li><b>애플 공증 전</b>이에요. 처음 열 때 macOS 가 한 번 막아요. 여는 방법은 위 설치 안내에 있어요.</li>
+      <li>휴지통 · 메일 첨부파일 · 메신저 캐시 · 아이폰 백업은 <b>전체 디스크 접근 권한</b>을 켜야 보여요.</li>
+      <li><b>비슷한 사진</b>을 찾으려면 사진 보관함 접근 권한이 필요해요.</li>
+      <li>혼자 만들고 있어서 답이 조금 늦을 수 있어요. 문제나 제안은 <a href="https://github.com/dev-fath/Sweeper-releases/issues/new">GitHub 이슈</a>로 남겨 주세요.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>자주 묻는 질문</h2>
+    <div style="margin-top:28px">
+      <details id="faq-notarize">
+        <summary>처음 열 때 경고 창이 떠요.</summary>
+        <p>아직 애플 공증을 받지 않아서 나오는 안내예요. 시스템 설정 › 개인정보 보호 및 보안 맨 아래에서 "그래도 열기"를 누르면 열려요.</p>
+      </details>
+      <details>
+        <summary>무료예요?</summary>
+        <p>지금 버전은 무료예요.</p>
+      </details>
+      <details>
+        <summary>맥이 빨라지나요?</summary>
+        <p>빨라진다고 약속하지는 않아요. Sweeper 가 하는 일은 저장 공간을 되찾는 거예요. 메모리 정리처럼 효과가 확실하지 않은 기능은 일부러 넣지 않았어요.</p>
+      </details>
+      <details>
+        <summary>지운 파일을 되살릴 수 있나요?</summary>
+        <p>휴지통으로 보낸 것(대용량 · 중복 파일, 지운 앱이 남긴 파일 등)은 휴지통을 비우기 전까지 꺼낼 수 있어요. 캐시 같은 안전 항목은 바로 지우지만, 필요하면 앱이 다시 만들어요. 되돌릴 수 없는 항목이 섞여 있으면 정리하기 전에 몇 개인지 따로 알려 줘요.</p>
+      </details>
+      <details>
+        <summary>전체 디스크 접근 권한은 꼭 켜야 하나요?</summary>
+        <p>아니요. 없어도 캐시나 개발 도구 정리는 돼요. 휴지통, 메일 첨부파일, 메신저 캐시, 아이폰 백업처럼 macOS 가 막아 둔 곳까지 보고 싶을 때 켜 주세요.</p>
+      </details>
+      <details>
+        <summary>늘 켜져 있나요?</summary>
+        <p>메뉴 막대에 떠 있으면서 알릴 게 있는지 확인해요. 메뉴 막대 아이콘, 알림, 로그인할 때 열기는 모두 환경설정에서 끌 수 있어요.</p>
+      </details>
+      <details>
+        <summary>제 정보를 어딘가로 보내나요?</summary>
+        <p>안 보내요. 인터넷에 접속하는 건 업데이트가 있는지 GitHub 에서 확인할 때뿐이에요.</p>
+      </details>
+      <details>
+        <summary>회사 맥에서 써도 되나요?</summary>
+        <p>회사 보안 프로그램이나 관리 프로그램은 지우거나 끄지 못하게 막아 뒀어요. 그래도 회사마다 규정이 다르니 한 번 확인해 보세요.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>일단 검사만 해 보세요</h2>
+    <p class="lead">지우기 전에 얼마나 비울 수 있는지부터 보여 줘요. 마음에 안 들면 그냥 닫으면 돼요.</p>
+    <div class="cta">
+      <a class="btn btn-primary js-download" href="https://github.com/dev-fath/Sweeper-releases/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+        <span class="js-download-label">맥용 내려받기</span>
+      </a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Sweeper <span class="js-version-plain"></span> · © 2026 devfath</span>
+    <span style="display:flex;gap:18px;flex-wrap:wrap"><a href="https://github.com/dev-fath/Sweeper-releases/releases">변경 기록</a><a href="https://github.com/dev-fath/Sweeper-releases/issues/new">피드백 보내기</a><a href="https://github.com/dev-fath/Sweeper-releases">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+  // 최신 릴리스의 DMG 로 내려받기 단추를 바로 잇는다. 실패하면 릴리스 페이지로 가는 기본 주소를 그대로 둔다.
+  fetch("https://api.github.com/repos/dev-fath/Sweeper-releases/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function (rel) {
+      var dmg = (rel.assets || []).find(function (a) { return /\.dmg$/i.test(a.name); });
+      if (!dmg) return;
+      document.querySelectorAll(".js-download").forEach(function (a) { a.href = dmg.browser_download_url; });
+      var v = (rel.tag_name || "").replace(/^v/, "");
+      if (v) {
+        document.querySelectorAll(".js-download-label").forEach(function (s) { s.textContent = "맥용 내려받기 · " + v; });
+        document.querySelectorAll(".js-version").forEach(function (s) { s.textContent = "· 최신 " + v; });
+        document.querySelectorAll(".js-version-plain").forEach(function (s) { s.textContent = "v" + v; });
+      }
+    })
+    .catch(function () {});
+  // #faq-notarize 처럼 질문으로 가는 링크를 누르면 그 질문을 펼친다.
+  function openTargetDetails() {
+    var el = location.hash && document.getElementById(location.hash.slice(1));
+    if (el && el.tagName === "DETAILS") el.open = true;
+  }
+  window.addEventListener("hashchange", openTargetDetails);
+  openTargetDetails();
+</script>
+</body>
+</html>
