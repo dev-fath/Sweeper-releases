@@ -3,13 +3,13 @@
   <channel>
     <title>Squeegee</title>
     <item>
-      <title>0.9.0</title>
-      <pubDate>Fri, 13 Nov 2026 11:34:59 +0900</pubDate>
-      <sparkle:version>228</sparkle:version>
-      <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
+      <title>0.9.1</title>
+      <pubDate>Thu, 19 Nov 2026 14:00:55 +0900</pubDate>
+      <sparkle:version>230</sparkle:version>
+      <sparkle:shortVersionString>0.9.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/dev-fath/Sweeper-releases/releases/tag/v0.9.0</sparkle:releaseNotesLink>
-      <enclosure url="https://github.com/dev-fath/Sweeper-releases/releases/download/v0.9.0/Squeegee-0.9.0.zip" sparkle:edSignature="16Cleg6RE/vbuk7VHC1f10MF2WeYv0SJu5TxpojgyeLxQy8A2fxX2/U5IlNlPPkQy4jTTwEEGoyEvhzHhdhEDw==" length="10187182" type="application/octet-stream"/>
+      <sparkle:releaseNotesLink>https://github.com/dev-fath/Sweeper-releases/releases/tag/v0.9.1</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/dev-fath/Sweeper-releases/releases/download/v0.9.1/Squeegee-0.9.1.zip" sparkle:edSignature="VQT8G+TYnr8PPEO4J8rTlCCEcZIXHI98Sc960ESmr4O9UIe3hXK4r1FSxVhIs9leFIKa8gkijYaPqV/+44bvDA==" length="10197840" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
